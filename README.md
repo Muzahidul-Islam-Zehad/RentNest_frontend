@@ -88,7 +88,6 @@ TypeScript + Tailwind CSS**. Landlords list properties, tenants browse, request 
 
 ```bash
 npm install
-cp .env.local.example .env.local   # or create it manually
 npm run dev
 ```
 
