@@ -45,14 +45,13 @@ export const useAuthStore = create<AuthState>()(
       isHydrated: false,
 
       setSession: async (user, accessToken) => {
-        // Persist the JWT in an httpOnly first-party cookie for the API proxy
+        // Persist the JWT in an httpOnly first-party cookie for the API proxy.
+        // This cookie is also the middleware's session indicator.
         await fetch("/api/auth/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ accessToken }),
         });
-        // non-httpOnly flag so Next.js middleware can detect the session
-        document.cookie = "rn_session=1; path=/; max-age=86400; samesite=lax";
         set({ user, accessToken });
       },
 
@@ -66,8 +65,8 @@ export const useAuthStore = create<AuthState>()(
         } catch {
           // 401/403 → session expired or revoked → clean up instantly
           set({ user: null, accessToken: null });
-          document.cookie = "rn_session=; path=/; max-age=0; samesite=lax";
           logoutSweeper?.clear();
+          void fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
           return null;
         }
       },
@@ -75,10 +74,10 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         // 1. Update state FIRST → UI re-renders instantly
         set({ user: null, accessToken: null });
-        document.cookie = "rn_session=; path=/; max-age=0; samesite=lax";
         // 2. Wipe all cached server data so no cross-account data lingers
         logoutSweeper?.clear();
-        // 3. Clear the httpOnly JWT cookie in the background (best-effort)
+        // 3. Clear the httpOnly JWT cookie in the background (best-effort);
+        //    middleware + RoleGuard then treat the user as signed out
         void fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
       },
     }),

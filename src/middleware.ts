@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Edge route protection.
- * - Session presence is flagged by the `rn_session` cookie, set on login and
- *   cleared on logout (see auth-store). Fine-grained role checks happen in
- *   RoleGuard + every dashboard page, because the JWT itself is an httpOnly
- *   cookie owned by the backend domain.
- * - Deep role enforcement additionally happens server-side on the backend API
- *   (401/403), which the UI surfaces via toasts + auto-logout.
+ *
+ * The JWT lives in the first-party httpOnly `rn_access_token` cookie (set by
+ * /api/auth/session), so the middleware checks that cookie directly — a single
+ * source of truth. Fine-grained role checks happen in RoleGuard + every
+ * dashboard page; the backend enforces roles again server-side (401/403).
  */
 
 const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
@@ -15,7 +14,9 @@ const AUTH_PAGES = ["/auth/login", "/auth/register"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const hasSession = Boolean(req.cookies.get("rn_session")?.value);
+  // Cookie lifetime (1 day) matches the backend JWT expiry, so presence here
+  // tracks a valid session. Empty on logout (session route clears it).
+  const hasSession = Boolean(req.cookies.get("rn_access_token")?.value);
 
   const isProtected = PROTECTED_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(p + "/")
