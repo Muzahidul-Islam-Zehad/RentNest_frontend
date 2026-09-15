@@ -31,7 +31,11 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       isHydrated: false,
 
-      setSession: (user, accessToken) => set({ user, accessToken }),
+      setSession: (user, accessToken) => {
+        // non-httpOnly flag so Next.js middleware can detect the session
+        document.cookie = "rn_session=1; path=/; max-age=86400; samesite=lax";
+        set({ user, accessToken });
+      },
 
       setUser: (user) => set({ user }),
 
@@ -47,7 +51,10 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => set({ user: null, accessToken: null }),
+      logout: () => {
+        document.cookie = "rn_session=; path=/; max-age=0; samesite=lax";
+        set({ user: null, accessToken: null });
+      },
     }),
     {
       name: "rentnest-auth",
