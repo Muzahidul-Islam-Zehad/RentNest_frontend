@@ -76,12 +76,16 @@ TypeScript + Tailwind CSS**. Landlords list properties, tenants browse, request 
 
 ## 🔐 Auth architecture
 
-1. Login → backend sets an **httpOnly JWT cookie** (validated on every API call via
-   `withCredentials: true`).
-2. A non-sensitive `rn_session` flag cookie lets `src/middleware.ts` protect
+1. Login returns the **JWT in the JSON body**; it is stored in a first-party **httpOnly
+   cookie** (`rn_access_token`) via `POST /api/auth/session`.
+2. All API calls go through a **same-origin Next.js proxy** (`src/app/api/[...path]`) that
+   forwards requests to the backend server-to-server — avoiding the backend's wildcard CORS
+   policy, which browsers reject for credentialed cross-origin requests. The proxy attaches
+   the JWT cookie to every request.
+3. A non-sensitive `rn_session` flag cookie lets `src/middleware.ts` protect
    `/dashboard/*` and `/profile` at the edge.
-3. A persisted **zustand** store mirrors `{ user, role }` for instant role-aware UI.
-4. `RoleGuard` re-validates the session with `GET /api/auth/me` on every dashboard visit and
+4. A persisted **zustand** store mirrors `{ user, role }` for instant role-aware UI.
+5. `RoleGuard` re-validates the session with `GET /api/auth/me` on every dashboard visit and
    blocks wrong-role access.
 
 ## 🚀 Getting started
@@ -91,16 +95,16 @@ npm install
 npm run dev
 ```
 
-`.env.local`:
+`.env.local` (optional — defaults to the production backend):
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=https://rent-nest-navy.vercel.app
+API_PROXY_TARGET=https://rent-nest-navy.vercel.app
 ```
 
 ## 📦 Deploy to Vercel
 
 1. Push to GitHub (this repo) → import in Vercel.
-2. Add env var `NEXT_PUBLIC_API_BASE_URL=https://rent-nest-navy.vercel.app`.
+2. Add env var `API_PROXY_TARGET=https://rent-nest-navy.vercel.app`.
 3. Deploy — `npm run build` passes cleanly (verified).
 
 ## 📄 API mapping

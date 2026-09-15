@@ -1,12 +1,18 @@
 # RentNest Frontend — API Integration Map
 
-> **Backend base URL:** `https://rent-nest-navy.vercel.app` (set via `NEXT_PUBLIC_API_BASE_URL`)
+> **Backend base URL:** `https://rent-nest-navy.vercel.app` (set via `API_PROXY_TARGET`; browser requests go through the same-origin `/api/[...path]` proxy)
 > **Backend source:** `../RentNest Server` (untouched — this is a frontend-only project)
 
-All requests go through `src/lib/api-client.ts` (axios, `withCredentials: true`) and the typed
-service layer in `src/lib/api.ts`. The backend wraps every response as
-`{ success, message, data, meta? }`; errors are normalized into `ApiError { status, message }`
-and surfaced via toasts, inline form errors, or error boundaries.
+All requests go through `src/lib/api-client.ts` (axios) → the same-origin Next.js
+proxy route `src/app/api/[...path]/route.ts` → the typed service layer in `src/lib/api.ts`.
+The backend wraps every response as `{ success, message, data, meta? }`; errors are normalized
+into `ApiError { status, message }` and surfaced via toasts, inline form errors, or error boundaries.
+
+**Why a proxy?** The backend answers with `Access-Control-Allow-Origin: *` (default `cors()`),
+which browsers reject for credentialed (`withCredentials`) cross-origin requests — direct
+calls fail CORS preflight. Routing through the Next.js server keeps the browser same-origin
+and forwards requests server-to-server, where CORS does not apply. The proxy target is set
+via `API_PROXY_TARGET` (default `https://rent-nest-navy.vercel.app`).
 
 ---
 
@@ -19,11 +25,13 @@ and surfaced via toasts, inline form errors, or error boundaries.
 | `/api/auth/me` | GET | `RoleGuard`, `auth-store.syncUser`, `Navbar` | Re-validates the session, drives role-aware UI. |
 | `/api/auth/me` | PATCH | `ProfilePage` (`/profile`) | Email update. |
 
-**Auth strategy:** JWT lives in the backend's httpOnly cookie (sent automatically with
-`withCredentials: true`). The frontend additionally stores the user object + access token in a
-persisted zustand store for instant role-aware rendering, sets a `rn_session` flag cookie so
-`src/middleware.ts` can guard `/dashboard/*` and `/profile` at the edge, and re-validates
-through `GET /api/auth/me` on every dashboard visit via `RoleGuard`.
+**Auth strategy:** the JWT returned by `POST /api/auth/login` is stored in a first-party
+httpOnly cookie (`rn_access_token`) via `POST /api/auth/session` (deleted on logout), because
+the backend's own cookie cannot be delivered cross-origin. The catch-all proxy forwards that
+cookie to the backend as the `accessToken` cookie its auth middleware reads. The user object
++ access token also live in a persisted zustand store for instant role-aware rendering, a
+`rn_session` flag cookie lets `src/middleware.ts` guard `/dashboard/*` and `/profile` at the
+edge, and `RoleGuard` re-validates through `GET /api/auth/me` on every dashboard visit.
 
 ---
 

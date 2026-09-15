@@ -7,9 +7,12 @@ import type { AuthUser, UserRole } from "@/types";
 
 /**
  * Global auth state.
- * The backend also sets httpOnly cookies on login; the cookie is what the API
- * actually validates. This store mirrors the user (id/email/role) so the UI
- * can render role-aware navigation and guards without an extra request.
+ *
+ * Session strategy: the JWT returned by login is mirrored into an httpOnly
+ * first-party cookie via /api/auth/session (the backend's own cookie can't be
+ * used cross-origin — see the API proxy route). This store keeps the user
+ * object for instant role-aware rendering; the cookie is what authorizes API
+ * calls through the proxy.
  */
 
 interface AuthState {
@@ -17,11 +20,11 @@ interface AuthState {
   accessToken: string | null;
   isHydrated: boolean;
 
-  setSession: (user: AuthUser, accessToken: string) => void;
+  setSession: (user: AuthUser, accessToken: string) => Promise<void>;
   setUser: (user: AuthUser) => void;
   /** Fetch fresh profile from /api/auth/me; returns null when not logged in */
   syncUser: () => Promise<AuthUser | null>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -31,7 +34,13 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       isHydrated: false,
 
-      setSession: (user, accessToken) => {
+      setSession: async (user, accessToken) => {
+        // Persist the JWT in an httpOnly first-party cookie for the API proxy
+        await fetch("/api/auth/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken }),
+        });
         // non-httpOnly flag so Next.js middleware can detect the session
         document.cookie = "rn_session=1; path=/; max-age=86400; samesite=lax";
         set({ user, accessToken });
@@ -51,7 +60,9 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => {
+      logout: async () => {
+        // Clear the httpOnly JWT cookie (best-effort) + local state
+        await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
         document.cookie = "rn_session=; path=/; max-age=0; samesite=lax";
         set({ user: null, accessToken: null });
       },

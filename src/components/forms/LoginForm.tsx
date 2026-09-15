@@ -43,12 +43,21 @@ export default function LoginForm() {
     setSubmitting(true);
     try {
       const tokens = await authApi.login(values);
+
+      // Store the JWT in our httpOnly cookie BEFORE calling /me — the proxy
+      // attaches it to authenticate the request. The interim user is a
+      // placeholder kept only for the duration of the /me call below.
+      await setSession({ id: "", email: values.email, role: "TENANT" }, tokens.accessToken);
+
       const user = await useAuthStore.getState().syncUser();
       if (!user) {
+        // /me failed → roll back to a clean logged-out state
+        await useAuthStore.getState().logout();
         toast.error("Logged in but could not load your profile. Please retry.");
         return;
       }
-      setSession(user, tokens.accessToken);
+      // Replace the placeholder with the real profile (cookie already stored)
+      useAuthStore.getState().setUser(user);
 
       toast.success(`Welcome back, ${user.email}!`);
 

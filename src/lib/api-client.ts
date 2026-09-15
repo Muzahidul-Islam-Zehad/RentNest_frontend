@@ -2,17 +2,18 @@ import axios, { AxiosError } from "axios";
 
 /**
  * Central API client for the RentNest backend.
- * - baseURL comes from env (NEXT_PUBLIC_API_BASE_URL)
- * - cookies are sent cross-origin so the backend httpOnly `accessToken`
- *   cookie reaches the Express auth middleware on every request
+ *
+ * All calls go to our own Next.js catch-all proxy route (/api/[...path]) which
+ * forwards them to the backend (API_PROXY_TARGET). This keeps the browser
+ * same-origin — the backend's wildcard CORS policy cannot authorize
+ * credentialed cross-origin requests, so direct browser → backend calls are
+ * blocked. The proxy also attaches the JWT session cookie server-side.
  */
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://rent-nest-navy.vercel.app";
+export const API_BASE_URL = "/api";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
