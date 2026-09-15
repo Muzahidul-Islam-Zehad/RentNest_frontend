@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     "RentNest is a modern rental property marketplace. Landlords list properties, tenants browse and pay securely, admins moderate the platform.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
