@@ -8,12 +8,12 @@ import axios, { AxiosError } from "axios";
  * same-origin — the backend's wildcard CORS policy cannot authorize
  * credentialed cross-origin requests, so direct browser → backend calls are
  * blocked. The proxy also attaches the JWT session cookie server-side.
+ *
+ * Service-layer paths already start with `/api/...` (same-origin), so no axios
+ * baseURL is set — a baseURL would double the prefix (e.g. /api/api/properties).
  */
 
-export const API_BASE_URL = "/api";
-
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
