@@ -32,7 +32,6 @@ export default function Navbar() {
   const handleLogout = () => {
     logout();
     router.push("/");
-    router.refresh();
   };
 
   const dashboardHref = user ? `/dashboard/${user.role.toLowerCase()}` : "/dashboard";

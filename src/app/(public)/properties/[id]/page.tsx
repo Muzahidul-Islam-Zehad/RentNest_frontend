@@ -235,12 +235,18 @@ export default function PropertyDetailsPage() {
                   </p>
                 </>
               ) : isTenant ? (
-                <Link
-                  href={`/properties/${property.id}/request`}
-                  className="block w-full rounded-xl bg-primary py-3 text-center text-sm font-semibold text-primary-foreground hover:opacity-90"
-                >
-                  Request to Rent
-                </Link>
+                property.isAvailable ? (
+                  <Link
+                    href={`/properties/${property.id}/request`}
+                    className="block w-full rounded-xl bg-primary py-3 text-center text-sm font-semibold text-primary-foreground hover:opacity-90"
+                  >
+                    Request to Rent
+                  </Link>
+                ) : (
+                  <p className="rounded-xl bg-red-500/10 py-3 text-center text-sm font-medium text-red-500">
+                    Currently unavailable for rent
+                  </p>
+                )
               ) : isLandlord ? (
                 <p className="rounded-xl bg-muted py-3 text-center text-sm text-muted-foreground">
                   You are viewing as a landlord

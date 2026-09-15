@@ -9,8 +9,10 @@ import type { UserRole } from "@/types";
 /**
  * Client-side role gate for dashboard segments.
  * - Waits for zustand rehydration
- * - Re-validates the session against /api/auth/me once
- * - Renders an access-denied card when the role does not match
+ * - Renders immediately when a persisted user with the right role exists
+ *   (no spinner delay on every navigation)
+ * - Re-validates the session against /api/auth/me in the background; a dead
+ *   session bounces to login
  */
 export default function RoleGuard({
   role,
@@ -23,7 +25,7 @@ export default function RoleGuard({
   const user = useAuthStore((s) => s.user);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const syncUser = useAuthStore((s) => s.syncUser);
-  const [checked, setChecked] = useState(false);
+  const [sessionDead, setSessionDead] = useState(false);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -33,17 +35,21 @@ export default function RoleGuard({
       return;
     }
 
-    // Re-validate the cookie session with the backend
+    // Background re-validation — UI stays rendered while this runs
+    let cancelled = false;
     syncUser().then((fresh) => {
+      if (cancelled) return;
       if (!fresh) {
+        setSessionDead(true);
         router.replace(`/auth/login?redirect=${window.location.pathname}`);
-        return;
       }
-      setChecked(true);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [isHydrated, user, syncUser, router]);
 
-  if (!isHydrated || !checked) {
+  if (!isHydrated) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -51,7 +57,15 @@ export default function RoleGuard({
     );
   }
 
-  if (user?.role !== role) {
+  if (!user || sessionDead) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (user.role !== role) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
         <div className="max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
@@ -59,10 +73,10 @@ export default function RoleGuard({
           <h2 className="mt-4 text-lg font-semibold">Access denied</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             This area is only for <span className="font-medium">{role.toLowerCase()}</span>{" "}
-            accounts. You are signed in as {user?.role?.toLowerCase() ?? "unknown"}.
+            accounts. You are signed in as {user.role.toLowerCase()}.
           </p>
           <button
-            onClick={() => router.push(`/dashboard/${user?.role?.toLowerCase()}`)}
+            onClick={() => router.push(`/dashboard/${user.role.toLowerCase()}`)}
             className="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             Go to my dashboard

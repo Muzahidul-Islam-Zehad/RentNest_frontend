@@ -84,10 +84,16 @@ export const landlordApi = {
   updateProperty: (id: string, payload: Partial<PropertyListingPayload>) =>
     apiPut<Property>(`/api/landlords/properties/${id}`, payload),
 
+  // Backend PATCH /landlords/properties/:id/status expects { status } with
+  // propertyStatus enum values; isAvailable is derived server-side from it.
   updatePropertyStatus: (id: string, isAvailable: boolean) =>
-    apiPatch<Property>(`/api/landlords/properties/${id}/status`, { isAvailable }),
+    apiPatch<Property>(`/api/landlords/properties/${id}/status`, {
+      status: isAvailable ? "ACTIVE" : "RENTED",
+    }),
 
-  myRequests: () => apiGet<RentalRequest[]>("/api/landlords/requests"),
+  // NOTE: returns Property[] each with nested rentalRequests[] (backend shape),
+  // not a flat RentalRequest[] — useLandlordRequests flattens it.
+  myRequests: () => apiGet<Property[]>("/api/landlords/requests"),
 
   updateRequestStatus: (id: string, status: "APPROVED" | "REJECTED", rejectionReason?: string) =>
     apiPatch<RentalRequest>(`/api/landlords/requests/${id}`, {

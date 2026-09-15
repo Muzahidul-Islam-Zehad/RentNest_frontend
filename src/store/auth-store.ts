@@ -2,8 +2,18 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { QueryClient } from "@tanstack/react-query";
 import { authApi } from "@/lib/api";
 import type { AuthUser, UserRole } from "@/types";
+
+/**
+ * Handle to the TanStack Query cache, registered by QueryProvider so logout
+ * can wipe all cached server data instantly. Avoids a circular import.
+ */
+let logoutSweeper: QueryClient | null = null;
+export function setLogoutSweeper(client: QueryClient) {
+  logoutSweeper = client;
+}
 
 /**
  * Global auth state.
@@ -24,7 +34,7 @@ interface AuthState {
   setUser: (user: AuthUser) => void;
   /** Fetch fresh profile from /api/auth/me; returns null when not logged in */
   syncUser: () => Promise<AuthUser | null>;
-  logout: () => Promise<void>;
+  logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -54,17 +64,22 @@ export const useAuthStore = create<AuthState>()(
           set({ user });
           return user;
         } catch {
-          // 401/403 → cookie expired or revoked
+          // 401/403 → session expired or revoked → clean up instantly
           set({ user: null, accessToken: null });
+          document.cookie = "rn_session=; path=/; max-age=0; samesite=lax";
+          logoutSweeper?.clear();
           return null;
         }
       },
 
-      logout: async () => {
-        // Clear the httpOnly JWT cookie (best-effort) + local state
-        await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
-        document.cookie = "rn_session=; path=/; max-age=0; samesite=lax";
+      logout: () => {
+        // 1. Update state FIRST → UI re-renders instantly
         set({ user: null, accessToken: null });
+        document.cookie = "rn_session=; path=/; max-age=0; samesite=lax";
+        // 2. Wipe all cached server data so no cross-account data lingers
+        logoutSweeper?.clear();
+        // 3. Clear the httpOnly JWT cookie in the background (best-effort)
+        void fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
       },
     }),
     {

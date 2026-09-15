@@ -51,6 +51,7 @@ export interface Property {
   category?: Category;
   landlord?: User;
   reviews?: Review[];
+  rentalRequests?: RentalRequest[];
 }
 
 export type RentalStatus =
