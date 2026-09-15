@@ -83,8 +83,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               <Home className="h-4 w-4" /> Back to site
             </Link>
             <button
-              onClick={() => {
-                logout();
+              onClick={async () => {
+                await logout();
                 router.push("/");
               }}
               className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-500/10"

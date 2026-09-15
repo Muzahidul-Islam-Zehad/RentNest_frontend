@@ -29,8 +29,10 @@ export default function Navbar() {
   // Close mobile menu on navigation
   useEffect(() => setMobileOpen(false), [pathname]);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    // Wait for the session cookie to clear so the middleware sees a
+    // signed-out user before any navigation happens
+    await logout();
     router.push("/");
   };
 

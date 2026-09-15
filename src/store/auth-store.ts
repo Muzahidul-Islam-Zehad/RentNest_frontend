@@ -34,7 +34,7 @@ interface AuthState {
   setUser: (user: AuthUser) => void;
   /** Fetch fresh profile from /api/auth/me; returns null when not logged in */
   syncUser: () => Promise<AuthUser | null>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -66,19 +66,20 @@ export const useAuthStore = create<AuthState>()(
           // 401/403 → session expired or revoked → clean up instantly
           set({ user: null, accessToken: null });
           logoutSweeper?.clear();
-          void fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+          await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
           return null;
         }
       },
 
-      logout: () => {
+      logout: async () => {
         // 1. Update state FIRST → UI re-renders instantly
         set({ user: null, accessToken: null });
         // 2. Wipe all cached server data so no cross-account data lingers
         logoutSweeper?.clear();
-        // 3. Clear the httpOnly JWT cookie in the background (best-effort);
-        //    middleware + RoleGuard then treat the user as signed out
-        void fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+        // 3. Clear the httpOnly JWT cookie and WAIT for it — callers navigate
+        //    after this resolves, so the middleware already sees a signed-out
+        //    user (prevents login-page → /dashboard bounce races)
+        await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
       },
     }),
     {
